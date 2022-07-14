@@ -1,57 +1,30 @@
 # docker-wireguard-socks-proxy
 
 Expose WireGuard as a SOCKS5 proxy in a Docker container.
+In addition, create a webpage to be able to switch between the multiple connection available.
 
 ## What does this fork do?
 
-Add multiple arch support, and restored the "build ability" of the image.
-
-## Why?
-
-This is arguably the easiest way to achieve "app based" routing. For example, you may only want certain applications to go through your WireGuard tunnel while the rest of your system should go through the default gateway. You can also achieve "domain name based" routing by using a [PAC file](https://developer.mozilla.org/en-US/docs/Web/HTTP/Proxy_servers_and_tunneling/Proxy_Auto-Configuration_(PAC)_file) that most browsers support.
+Add capacity to handle multiple connection in one proxy + allow usage from outside the host
 
 ## Usage
 
-Preferably, using `start` in this repository:
+A Simple `docker run` will do the trick:
 
 ```bash
-bash start.sh /directory/containing/your/wireguard/conf/file
+docker run --rm --name wireguard-socks-proxy \
+    --restart=unless-stopped \
+    -e LOCAL_NETWORK=192.168.0.0/24 \
+    --cap-add=NET_ADMIN \
+    -v <location where are you wiregard.conf files>:/etc/wireguard/:ro \
+    -p 12345:1080 \ #Port exposed for the Socket5 proxy
+    -p 9180:8080 \ # Port exposed for the webinterface
+    tekka90/docker-wireguard-socks-proxy:latest
 ```
 
-Alternatively, you can use `docker run` directly if you want to customize things such as port mapping:
-
-```bash
-docker run -it --rm --cap-add=NET_ADMIN \
-    --name wireguard-socks-proxy \
-    -v ${PWD}:/etc/wireguard/:ro \
-    -p 1080:1080 \
-    ghcr.io/k0in/docker-wireguard-socks-proxy:latest
-```
-
-Then connect to SOCKS proxy through through `127.0.0.1:1080` (or `local.docker:1080` for Mac / docker-machine / etc.). For example:
+Then connect to SOCKS proxy through through `127.0.0.1:12345` (or `ip of the host:12345` for Mac / docker-machine / etc.). For example:
 
 ```bash
 curl --proxy socks5h://127.0.0.1:1080 ipinfo.io
+curl --proxy socks5h://<host>:1080 ipinfo.io
 ```
-
-## HTTP Proxy
-
-You can easily convert this to an HTTP proxy using [http-proxy-to-socks](https://github.com/oyyd/http-proxy-to-socks), e.g.
-
-```bash
-hpts -s 127.0.0.1:1080 -p 8080
-```
-
-## Troubleshooting
-
-### I get "Permission Denied"
-
-This can happen if your WireGuard configuration file includes an IPv6 address but your host interface does not work with it. Try removing the IPv6 address in `Address` from your configuration file.
-
-### I get bindinternal(): [...] for server to listen on failed: Address not available
-
-Try to add `--sysctl net.ipv6.conf.all.disable_ipv6=1` to your docker run parameters.
-
-### I cannot request https origins / or cannot access proxy from external host
-
- this is a bug with docker the docker network / mtu have a look at the [docker-compose.yml](docker-compose.yml) to fix it.
