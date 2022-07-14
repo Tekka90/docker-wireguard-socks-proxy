@@ -6,7 +6,7 @@ on:
             - 'main'
 
 env:
-    REGISTRY: ghcr.io
+    REGISTRY: tekka90
     IMAGE_NAME: ${{ github.repository }}
 
 jobs:
